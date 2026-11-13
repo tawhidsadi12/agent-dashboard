@@ -1,0 +1,16 @@
+# machine-local config — agents.json can contain API keys, scope.json is
+# specific to the program you are authorised to test
+agents.json
+scope.json
+tools.json
+
+# runtime state
+state/
+logs/
+data/
+
+# python
+__pycache__/
+*.pyc
+.venv/
+venv/

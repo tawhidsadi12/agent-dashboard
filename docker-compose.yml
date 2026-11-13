@@ -1,0 +1,37 @@
+services:
+  dashboard:
+    build: .
+    image: hunt-dashboard:latest
+    container_name: hunt-dashboard
+    init: true
+    restart: unless-stopped
+
+    # Bound to 127.0.0.1 on purpose: the UI has no authentication and can
+    # spawn agents. Do not publish this on 0.0.0.0 / your LAN.
+    ports:
+      - "127.0.0.1:8777:8777"
+
+    environment:
+      HUNT_DATA_DIR: /data
+      HUNT_HOST: 0.0.0.0
+      HUNT_PORT: "8777"
+      # 0 = real mode: bounded, scope-checked checks whose findings carry real
+      # response evidence. A task whose tools are missing is refused.
+      # 1 = old simulation, for exercising the pipeline without a network.
+      HUNT_DEMO_MODE: "0"
+      # The written-authorization gate is off by default and can be toggled in
+      # the Scope panel. Uncomment to pin it for this deployment:
+      # HUNT_REQUIRE_AUTH: "1"
+      # Scope is lenient by default (a new hunt target is added to the list).
+      # Uncomment to require a pre-listed target:
+      # HUNT_STRICT_SCOPE: "1"
+
+    volumes:
+      - hunt-data:/data
+      # Prefer a normal folder on the host (easy to read the JSON by hand)?
+      # Comment the line above and use this instead. On Linux, pre-create it
+      # with the container's uid:  mkdir -p data && sudo chown -R 1000:1000 data
+      # - ./data:/data
+
+volumes:
+  hunt-data:

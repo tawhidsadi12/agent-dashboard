@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>Hunt Console</title>
+<link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <div class="logo">◈</div>
+    <div>
+      <h1>Hunt Console</h1>
+      <div class="sub">authorized, evidence-first bug bounty</div>
+    </div>
+  </div>
+  <div class="chips">
+    <span class="chip" id="chip-mode">real checks</span>
+    <span class="chip" id="chip-scope">scope empty</span>
+    <span class="chip" id="chip-auth">authorization missing</span>
+    <span class="chip" id="chip-stop">stop ready</span>
+    <span class="chip" id="updated">updated —</span>
+  </div>
+  <div class="scorebar">
+    <span class="badge confirmed" id="b-confirmed">0 confirmed</span>
+    <span class="badge likely" id="b-likely">0 likely</span>
+    <span class="badge dig" id="b-dig">0 DIG</span>
+    <span class="badge chain" id="b-chain">0 chains</span>
+    <span class="badge lead" id="b-lead">0 leads</span>
+    <button class="btn danger" id="stop-btn" type="button">Stop hunt</button>
+  </div>
+</header>
+
+<nav class="tabs">
+  <button class="tab-btn active" data-tab="team">Dashboard</button>
+  <button class="tab-btn" data-tab="findings">Findings</button>
+  <button class="tab-btn" data-tab="runs">Runs</button>
+  <button class="tab-btn" data-tab="activity">Activity &amp; logs</button>
+  <button class="tab-btn" data-tab="playbooks">Playbooks</button>
+  <button class="tab-btn" data-tab="tools">Tools</button>
+  <button class="tab-btn" data-tab="setup-ai">Setup AI</button>
+</nav>
+
+<main>
+  <!-- ============================ DASHBOARD ============================ -->
+  <section class="tab active" id="tab-team">
+    <div class="card hero">
+      <h2>Start with a target you are allowed to test</h2>
+      <p class="lead">Scope and written authorization are checked before a single request leaves this machine. Auto plan profiles the target with ordinary GETs, ranks the categories, and hands the order to the workers.</p>
+
+      <form class="hunt-form" id="hunt-form">
+        <label class="field grow"><span>Target (hostname, URL or host:port)</span>
+          <input type="text" name="target" placeholder="e.g. app.example.com" autocomplete="off" required>
+        </label>
+        <label class="field"><span>Rounds</span>
+          <input type="number" name="rounds" value="3" min="1" max="20">
+        </label>
+        <button class="btn primary" type="submit" id="hunt-submit">Start hunt</button>
+        <button class="btn" type="button" id="plan-btn">Check &amp; plan</button>
+      </form>
+      <div class="hunt-status" id="hunt-status"></div>
+
+      <div class="divider"></div>
+      <button class="link" id="scope-toggle" type="button">Scope &amp; authorization (new targets are added automatically)</button>
+      <div class="scope-panel" id="scope-panel">
+        <div class="scope-cols">
+          <label class="field"><span>IN-SCOPE — one per line (subdomains included)</span>
+            <textarea id="in-scope" placeholder="example.com&#10;api.example.com&#10;10.0.0.0/8"></textarea>
+          </label>
+          <label class="field"><span>OUT-OF-SCOPE — always blocked, even if also in scope</span>
+            <textarea id="out-scope" placeholder="payments.example.com&#10;staging-internal.example.com"></textarea>
+          </label>
+        </div>
+        <p class="hint" style="margin-top:10px;">Scope is <b>lenient by default</b>: a hunt target that is not listed is added automatically (audited as <code>scope.auto_add</code>). <b>Out-of-scope always wins</b> and is re-checked before every request. Turn on strict scope below to require a pre-listed target.</p>
+        <label class="auth-confirm" style="margin-top:10px;">
+          <input type="checkbox" id="scope-strict">
+          <span><b>Only allow targets already in the in-scope list (strict).</b> When off, a new target is appended to the list; when on, an unlisted target is blocked with <code>403</code>. <span class="hint" id="scope-strict-note"></span></span>
+        </label>
+
+        <div class="divider"></div>
+        <h3 style="margin-bottom:4px;">Written authorization</h3>
+        <p class="hint">Program name, reference and authorization window are stored locally in <code>authorization.json</code>. They are not proof by themselves — they are the record you need when someone asks why a request was sent.</p>
+        <div class="auth-grid">
+          <label class="field"><span>Program / client *</span><input type="text" id="auth-program" placeholder="Acme public bug bounty"></label>
+          <label class="field"><span>Program URL</span><input type="text" id="auth-url" placeholder="https://hackerone.com/acme"></label>
+          <label class="field"><span>Authorized by</span><input type="text" id="auth-by" placeholder="name / team"></label>
+          <label class="field"><span>Reference / policy version</span><input type="text" id="auth-ref" placeholder="H1-1234 / policy v3"></label>
+          <label class="field"><span>Testing window</span><input type="text" id="auth-window" placeholder="2026-11-01 → 2026-11-30"></label>
+          <label class="field"><span>Rate limit / constraints</span><input type="text" id="auth-rate" placeholder="5 req/s, no DoS, no social engineering"></label>
+        </div>
+        <label class="auth-confirm">
+          <input type="checkbox" id="auth-confirm">
+          <span>I have <b>written permission</b> to test the in-scope assets, I will respect the stated exclusions, rate limits and testing window, and I understand that CTF techniques must never be used against bounty targets.</span>
+        </label>
+        <label class="auth-confirm" style="margin-top:10px;">
+          <input type="checkbox" id="auth-required">
+          <span><b>Block hunts until this record is confirmed.</b> When off, the fields above are a record only — the in-scope list is still enforced for every request. <span class="hint" id="auth-required-note"></span></span>
+        </label>
+        <div class="row" style="margin-top:12px;">
+          <button class="btn primary" id="scope-save" type="button">Save scope</button>
+          <button class="btn" id="auth-save" type="button">Save authorization</button>
+          <span class="hint">Saving scope does not confirm authorization.</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel" id="plan-panel" style="display:none;">
+      <div class="panel-head">
+        <div><h2>Ranked plan</h2><p class="hint" id="plan-note">Built from the surface profile and the playbook weights.</p></div>
+        <span class="tag auto" id="plan-source">auto</span>
+      </div>
+      <div class="plan-list" id="plan-list"></div>
+      <div class="plan-actions" id="plan-actions"></div>
+    </div>
+
+    <div class="panel" id="profile-panel" style="display:none;"></div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <div><h2>Categories</h2><p class="hint" id="cat-hint">Auto mode is on.</p></div>
+        <div class="row">
+          <button class="btn small ghost" id="cats-all" type="button">All</button>
+          <button class="btn small ghost" id="cats-auto" type="button">Auto</button>
+          <button class="btn small ghost" id="cats-none" type="button">None</button>
+        </div>
+      </div>
+      <div class="categories" id="category-chips"></div>
+    </div>
+
+    <div class="section-head">
+      <h2>Live team</h2>
+      <span class="legend">Pulse from heartbeats · <span style="color:var(--green)">●</span> live &lt;90s · <span style="color:var(--yellow)">●</span> silent · <span style="color:var(--red)">●</span> blocked</span>
+    </div>
+    <div class="grid" id="agent-grid"></div>
+  </section>
+
+  <!-- ============================ FINDINGS ============================= -->
+  <section class="tab" id="tab-findings">
+    <div class="panel">
+      <div class="panel-head">
+        <div><h2>Findings</h2><p class="hint" id="findings-count">0 shown</p></div>
+        <button class="btn small" id="export-findings" type="button">Copy as Markdown</button>
+      </div>
+      <div class="run-note" id="demo-banner" style="display:none; color:var(--yellow);">
+        This is a simulated (demo) run. Start a new hunt with real checks for evidence-backed results.
+      </div>
+      <div class="filters">
+        <input type="text" id="f-search" placeholder="Filter by title, host, agent, evidence…">
+        <select id="f-sev">
+          <option value="all">All severities</option>
+          <option value="confirmed">Confirmed</option>
+          <option value="likely">Likely</option>
+          <option value="dig">DIG</option>
+          <option value="chain">Chain</option>
+          <option value="lead">Lead</option>
+        </select>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th style="width:96px">Time</th><th style="width:130px">Agent</th>
+            <th style="width:100px">Severity</th><th>Finding &amp; evidence</th><th style="width:30%">Target</th>
+          </tr></thead>
+          <tbody id="findings-body"></tbody>
+        </table>
+      </div>
+      <div class="empty" id="findings-empty" style="display:none;">No findings match this filter.</div>
+    </div>
+  </section>
+
+  <!-- ============================== RUNS =============================== -->
+  <section class="tab" id="tab-runs">
+    <div class="panel">
+      <div class="panel-head">
+        <div><h2>Runs &amp; diffs</h2><p class="hint">Every hunt is stored under <code>state/runs/&lt;id&gt;/</code> and never overwritten. A host that is new since the previous run has most likely never been tested.</p></div>
+      </div>
+      <div class="filters">
+        <select class="run-select" id="run-select"></select>
+        <button class="btn small" id="run-refresh" type="button">Refresh diff</button>
+      </div>
+      <p class="hint" id="run-summary" style="margin-bottom:12px;"></p>
+      <div class="split">
+        <div class="panel" style="margin:0;">
+          <h3 class="hint">NEW OR CHANGED SINCE PREVIOUS RUN</h3>
+          <div class="diff-list" id="diff-added"></div>
+        </div>
+        <div class="panel" style="margin:0;">
+          <h3 class="hint">GONE SINCE PREVIOUS RUN</h3>
+          <div class="diff-list" id="diff-removed"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========================= ACTIVITY & LOGS ========================= -->
+  <section class="tab" id="tab-activity">
+    <div class="split">
+      <div class="panel">
+        <div class="panel-head">
+          <div><h2>Live activity</h2><p class="hint">Last 20 lines per agent log, newest agents last.</p></div>
+        </div>
+        <div class="log" id="activity-log">waiting for agents…</div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <div><h2>Log files</h2><p class="hint">Delete one file, or clear all with a typed confirmation. Every deletion is audited.</p></div>
+          <div class="row">
+            <button class="btn small" id="log-refresh" type="button">Refresh</button>
+            <button class="btn small danger" id="log-clear" type="button">Clear all</button>
+          </div>
+        </div>
+        <div id="log-list"></div>
+        <div class="divider"></div>
+        <h3 class="hint" id="log-view-title">Select a log to read it here.</h3>
+        <div class="log" id="log-view" style="max-height:34vh; margin-top:8px;"></div>
+        <div class="divider"></div>
+        <h3 class="hint">AUDIT TRAIL</h3>
+        <div class="audit" id="audit-log">no audited actions yet</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ PLAYBOOKS ============================ -->
+  <section class="tab" id="tab-playbooks">
+    <div class="panel">
+      <div class="panel-head">
+        <div><h2>Playbooks</h2><p class="hint">Step-by-step methodology, commands, evidence requirements and pitfalls for every category. Commands are templates — review scope before running one.</p></div>
+      </div>
+      <div class="playbook-grid">
+        <div class="pb-list" id="pb-list"></div>
+        <div class="pb-detail" id="pb-detail"><div class="empty">Pick a category.</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================== TOOLS ============================== -->
+  <section class="tab" id="tab-tools">
+    <div class="panel">
+      <div class="panel-head">
+        <div><h2>Toolbox</h2><p class="hint">Pick one tool per stage. <b>installed</b> means the binary was found on PATH; <b>need install</b> shows the exact command. Nothing installs automatically.</p></div>
+        <button class="btn small" id="tools-refresh" type="button">Re-detect</button>
+      </div>
+      <div class="filters">
+        <input type="text" id="tool-search" placeholder="Search tools, stages or descriptions…">
+        <div class="tool-summary" id="tool-summary">loading the catalog…</div>
+      </div>
+      <div class="tool-grid" id="tool-grid"></div>
+    </div>
+  </section>
+
+  <!-- ============================= SETUP AI ============================ -->
+  <section class="tab" id="tab-setup-ai">
+    <div class="panel">
+      <div class="panel-head">
+        <div><h2>Agents &amp; models</h2></div>
+        <div class="row">
+          <button class="btn small" id="add-agent-btn" type="button">+ Add agent</button>
+          <button class="btn primary small" id="save-agents-btn" type="button">Save</button>
+        </div>
+      </div>
+      <p class="ai-hint">Each row is one agent. <b>model</b> is the identifier your runtime expects. <b>api key</b> is optional and never echoed back. A <b>lead</b> is the orchestrator identity; workers get the tasks.</p>
+      <div class="table-wrap">
+        <table class="agents-table">
+          <thead><tr>
+            <th style="width:22%">name</th><th style="width:16%">role</th>
+            <th style="width:32%">model</th><th style="width:22%">api key</th><th style="width:8%"></th>
+          </tr></thead>
+          <tbody id="agents-body"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head"><h2>Runs on Kali, Windows, WSL2</h2></div>
+      <div class="pb-cols">
+        <div>
+          <h4 class="hint">KALI LINUX (RECOMMENDED)</h4>
+          <ul class="hint">
+            <li>Docker Engine + Compose plugin already ship with Kali.</li>
+            <li><code>docker compose up --build</code> in this folder.</li>
+            <li>Open <code>http://127.0.0.1:8777</code>; the image contains the Go/Python/apt toolchain.</li>
+            <li>Native mode works too: <code>python3 server.py</code>, then install tools from the Tools tab.</li>
+          </ul>
+        </div>
+        <div>
+          <h4 class="hint">WINDOWS 11 / WSL2</h4>
+          <ul class="hint">
+            <li>Docker Desktop with the WSL2 backend: same <code>docker compose up --build</code>.</li>
+            <li>Native Windows: install Python 3.12 from python.org (not the Store stub), then <code>python server.py</code>.</li>
+            <li>Go-based tools install with <code>go install</code>; the release scripts are bash and expect WSL.</li>
+            <li>Keep the port bound to <code>127.0.0.1</code>; the API can spawn agents.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<div class="toasts" id="toasts"></div>
+
+<div class="modal" id="modal" hidden>
+  <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <h3 id="modal-title">Confirm</h3>
+    <p id="modal-body"></p>
+    <input type="text" id="modal-input" autocomplete="off">
+    <div class="hint" id="modal-hint"></div>
+    <div class="modal-actions">
+      <button class="btn" id="modal-cancel" type="button">Cancel</button>
+      <button class="btn primary" id="modal-ok" type="button">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<script src="/static/app.js"></script>
+</body>
+</html>

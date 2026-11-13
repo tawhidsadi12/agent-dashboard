@@ -1,0 +1,27 @@
+# Keep the build context small, and keep machine-local secrets out of the
+# image: agents.json can hold API keys and is created at runtime in /data.
+
+.git
+.gitignore
+__pycache__/
+*.pyc
+*.pyo
+
+.venv/
+venv/
+env/
+
+data/
+state/
+logs/
+
+agents.json
+scope.json
+tools.json
+
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+*.log
+.DS_Store

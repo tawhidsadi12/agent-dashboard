@@ -1,0 +1,1261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hunt Dashboard</title>
+<style>
+  :root {
+    --bg: #0b0e14;
+    --panel: #11151d;
+    --border: #232a36;
+    --text: #e6e9ef;
+    --muted: #8993a4;
+    --accent: #6ea8fe;
+    --green: #35d07f;
+    --yellow: #e6b450;
+    --red: #ff6b6b;
+    --purple: #c792ea;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+  header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  header h1 {
+    font-size: 16px;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .badges { display: flex; gap: 8px; flex-wrap: wrap; }
+  .badge {
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    border: 1px solid var(--border);
+  }
+  .badge.confirmed { color: var(--red); border-color: #5a2a2a; background: #1e1414; }
+  .badge.likely { color: var(--yellow); border-color: #4a3a1a; background: #1e1a10; }
+  .badge.dig { color: var(--green); border-color: #1a4a2e; background: #10201a; }
+  .badge.chain { color: var(--accent); border-color: #1a3a5a; background: #101a2a; }
+  .badge.lead { color: var(--purple); border-color: #3a1a5a; background: #180f28; }
+  .meta { font-size: 12px; color: var(--muted); }
+
+  nav {
+    display: flex;
+    gap: 6px;
+    padding: 12px 20px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  nav button {
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--muted);
+    padding: 8px 14px;
+    border-radius: 8px 8px 0 0;
+    cursor: pointer;
+    font-size: 13px;
+  }
+  nav button.active {
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-bottom-color: var(--bg);
+    background: var(--panel);
+  }
+
+  main { padding: 20px; }
+  .tab { display: none; }
+  .tab.active { display: block; }
+
+  .section-title {
+    font-size: 13px;
+    color: var(--accent);
+    letter-spacing: 0.04em;
+    margin: 4px 0 4px;
+  }
+  .legend { font-size: 12px; color: var(--muted); margin-bottom: 14px; }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 14px;
+  }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px;
+    min-height: 140px;
+  }
+  .card-top { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+  .dot.live, .dot.ontask { background: var(--green); }
+  .dot.yellow { background: var(--yellow); }
+  .dot.grey { background: #555; }
+  .name { font-weight: 700; }
+  .model { font-size: 12px; color: var(--muted); margin-left: 4px; }
+  .status-line { font-weight: 600; font-size: 13px; margin: 6px 0 8px; }
+  .status-line.live, .status-line.ontask { color: var(--green); }
+  .status-line.yellow { color: var(--yellow); }
+  .status-line.grey { color: var(--muted); }
+  .task-desc { font-size: 13px; color: #c6cbd6; line-height: 1.4; }
+  .card-foot { font-size: 11px; color: var(--muted); margin-top: 10px; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); }
+  th { color: var(--muted); font-weight: 600; font-size: 12px; }
+  .sev { padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; }
+
+  .log { font-family: ui-monospace, Menlo, monospace; font-size: 12px; color: #c6cbd6;
+    background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
+    padding: 12px; max-height: 60vh; overflow-y: auto; white-space: pre-wrap; }
+
+  .empty { color: var(--muted); font-size: 13px; padding: 20px 0; }
+
+  .hunt-form {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 18px;
+    flex-wrap: wrap;
+  }
+  .hunt-form input {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 9px 12px;
+    border-radius: 8px;
+    font-size: 13px;
+  }
+  .hunt-form input[name="target"] { flex: 1; min-width: 220px; }
+  .hunt-form input[name="rounds"] { width: 70px; }
+  .hunt-form button {
+    background: var(--accent);
+    color: #0b0e14;
+    border: none;
+    padding: 9px 16px;
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .hunt-form button:disabled { opacity: 0.5; cursor: not-allowed; }
+  .hunt-status { font-size: 12px; color: var(--muted); margin-bottom: 14px; }
+  .hunt-status.error { color: var(--red); }
+  .hunt-status.warning { color: var(--yellow); }
+
+  .categories {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+  }
+  .cat-chip {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 5px 12px;
+    font-size: 12px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .cat-chip input { margin: 0; }
+  .cat-chip.checked { border-color: var(--accent); color: var(--accent); }
+  .cat-chip.auto-chip { border-style: dashed; }
+  .cat-chip.auto-chip.checked { border-color: var(--green); color: var(--green); }
+
+  /* --- target surface check ------------------------------------------- */
+  .profile-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin: -6px 0 14px;
+  }
+  .profile-note { font-size: 11px; color: var(--muted); }
+  .profile-panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px;
+    margin-bottom: 16px;
+  }
+  .profile-panel.error { border-color: #5a2a2a; }
+  .profile-head {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: center;
+    margin-bottom: 12px;
+    font-size: 12px;
+  }
+  .profile-head .url {
+    font-family: ui-monospace, Menlo, monospace;
+    color: var(--accent);
+    word-break: break-all;
+  }
+  .tech-chip {
+    display: inline-block;
+    background: #16202e;
+    border: 1px solid #24405c;
+    color: var(--accent);
+    border-radius: 999px;
+    padding: 3px 10px;
+    font-size: 11px;
+    margin: 0 6px 6px 0;
+  }
+  .tech-chip .ver { color: var(--muted); }
+  .profile-grid {
+    display: grid;
+    grid-template-columns: 1.1fr 1fr;
+    gap: 18px;
+  }
+  .profile-grid h4 {
+    font-size: 11px;
+    color: var(--muted);
+    margin: 0 0 8px;
+    letter-spacing: 0.04em;
+  }
+  .profile-cat {
+    display: flex;
+    gap: 8px;
+    align-items: baseline;
+    padding: 5px 0;
+    font-size: 12px;
+    border-bottom: 1px dashed #1e2532;
+  }
+  .profile-cat:last-child { border-bottom: none; }
+  .conf {
+    flex: 0 0 auto;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 1px 7px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+  .conf.high { color: var(--red); border-color: #5a2a2a; }
+  .conf.medium { color: var(--yellow); border-color: #4a3a1a; }
+  .conf.low { color: var(--muted); }
+  .profile-reason { color: var(--muted); font-size: 11px; }
+  .profile-kv { font-size: 12px; line-height: 1.75; }
+  .profile-kv b { color: var(--text); font-weight: 600; }
+  .profile-kv .ok { color: var(--green); }
+  .profile-kv .gap { color: var(--yellow); }
+  .profile-exposure { font-size: 11px; margin: 3px 0; }
+  .sev-high { color: var(--red); }
+  .sev-medium { color: var(--yellow); }
+  .sev-info { color: var(--muted); }
+  .profile-apply {
+    margin-top: 12px;
+    background: var(--accent);
+    color: #0b0e14;
+    border: none;
+    padding: 7px 14px;
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: 12px;
+    cursor: pointer;
+  }
+  .profile-apply:disabled { opacity: 0.5; cursor: not-allowed; }
+  @media (max-width: 820px) {
+    .profile-grid { grid-template-columns: 1fr; }
+  }
+
+  .scope-toggle {
+    background: transparent;
+    border: none;
+    color: var(--muted);
+    font-size: 12px;
+    cursor: pointer;
+    padding: 0 0 14px;
+    text-decoration: underline;
+  }
+  .scope-panel {
+    display: none;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px;
+    margin-bottom: 16px;
+  }
+  .scope-panel.open { display: block; }
+  .scope-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .scope-cols label { font-size: 12px; color: var(--muted); display: block; margin-bottom: 6px; }
+  .scope-cols textarea {
+    width: 100%;
+    min-height: 90px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 8px;
+    padding: 8px;
+    font-size: 12px;
+    font-family: ui-monospace, Menlo, monospace;
+    resize: vertical;
+  }
+  .scope-panel .hint { font-size: 11px; color: var(--muted); margin-top: 10px; }
+  .scope-save {
+    margin-top: 10px;
+    background: var(--accent);
+    color: #0b0e14;
+    border: none;
+    padding: 7px 14px;
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: 12px;
+    cursor: pointer;
+  }
+  .scope-saved-msg { font-size: 11px; color: var(--green); margin-left: 10px; }
+
+  .agents-table { width: 100%; border-collapse: collapse; margin-bottom: 14px; }
+  .agents-table th { text-align: left; font-size: 11px; color: var(--muted); padding: 6px 8px; }
+  .agents-table td { padding: 6px 8px; border-bottom: 1px solid var(--border); }
+  .agents-table input, .agents-table select {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 7px 9px;
+    border-radius: 6px;
+    font-size: 12px;
+    width: 100%;
+  }
+  .agents-table input[name="api_key"] { font-family: ui-monospace, monospace; }
+  .agents-table .rm-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--red);
+    border-radius: 6px;
+    padding: 6px 10px;
+    cursor: pointer;
+    font-size: 12px;
+  }
+  .ai-actions { display: flex; gap: 8px; align-items: center; }
+  .btn-primary {
+    background: var(--accent);
+    color: #0b0e14;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .btn-secondary {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .ai-hint { font-size: 12px; color: var(--muted); margin: 10px 0 18px; line-height: 1.5; }
+  .ai-saved-msg { font-size: 12px; color: var(--green); }
+
+  .dot.blocked { background: var(--red); }
+  .status-line.blocked { color: var(--red); }
+  .role-tag {
+    font-size: 10px; font-weight: 700; letter-spacing: .06em;
+    color: var(--accent); border: 1px solid #1a3a5a; background: #101a2a;
+    padding: 1px 6px; border-radius: 999px;
+  }
+  .demo-tag {
+    font-size: 10px; font-weight: 700; letter-spacing: .06em;
+    color: var(--purple); border: 1px solid #3a1a5a; background: #180f28;
+    padding: 1px 6px; border-radius: 999px; margin-left: 8px;
+  }
+  .dupe { font-size: 10px; color: var(--muted); margin-left: 6px; }
+  .f-evidence { font-size: 11px; color: var(--muted); margin-top: 4px; line-height: 1.45; }
+  .f-url { font-family: ui-monospace, Menlo, monospace; font-size: 11px; color: var(--muted); word-break: break-all; }
+  .mono { font-family: ui-monospace, Menlo, monospace; }
+
+  .run-select {
+    background: var(--panel); border: 1px solid var(--border); color: var(--text);
+    padding: 8px 10px; border-radius: 8px; font-size: 12px; max-width: 100%;
+  }
+  .run-note { font-size: 12px; color: var(--muted); margin-bottom: 12px; line-height: 1.5; }
+  .diff-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 14px; }
+  .diff-box { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 12px; }
+  .diff-box h3 { font-size: 11px; margin: 0 0 8px; color: var(--muted); font-weight: 600; letter-spacing: .04em; }
+  .diff-list { font-family: ui-monospace, Menlo, monospace; font-size: 12px; max-height: 360px; overflow-y: auto; line-height: 1.8; }
+  .diff-list .added { color: var(--green); }
+  .diff-list .removed { color: var(--red); opacity: .8; }
+  .diff-list .dim { color: var(--muted); }
+  .diff-list .empty { padding: 0; font-family: -apple-system, "Segoe UI", sans-serif; }
+
+  /* --- Tools tab ------------------------------------------------------- */
+  .tool-summary { font-size: 12px; color: var(--muted); flex: 1; line-height: 1.7; }
+  .tool-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(330px, 1fr));
+    gap: 14px;
+  }
+  .tool-stage {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .tool-stage-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  .tool-stage h3 { font-size: 13px; margin: 0; }
+  .tool-stage .blurb { font-size: 11px; color: var(--muted); margin: -2px 0 2px; }
+  .tool-stage select {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 8px 10px;
+    border-radius: 8px;
+    font-size: 12px;
+  }
+  .pill {
+    font-size: 10px; font-weight: 700; letter-spacing: .05em;
+    padding: 2px 7px; border-radius: 999px; border: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  .pill.ok { color: var(--green); border-color: #1a4a2e; background: #10201a; }
+  .pill.need { color: var(--yellow); border-color: #4a3a1a; background: #1e1a10; }
+  .tool-alt { display: flex; flex-wrap: wrap; gap: 6px; }
+  .alt-chip {
+    font-size: 11px; padding: 3px 8px; border-radius: 999px;
+    border: 1px solid var(--border); background: transparent;
+    color: var(--muted); cursor: pointer;
+  }
+  .alt-chip:hover { border-color: var(--accent); color: var(--accent); }
+  .tool-detail {
+    margin-top: 2px; border-top: 1px dashed var(--border);
+    padding-top: 9px; font-size: 12px; line-height: 1.55;
+  }
+  .tool-detail .what { color: #c6cbd6; }
+  .tool-detail .cmd {
+    font-family: ui-monospace, Menlo, monospace; font-size: 11px;
+    color: var(--muted); background: var(--bg); border: 1px solid var(--border);
+    border-radius: 6px; padding: 6px 8px; margin-top: 6px; word-break: break-all;
+  }
+  .tool-detail a { color: var(--accent); font-size: 11px; text-decoration: none; }
+  .tool-detail a:hover { text-decoration: underline; }
+  .tool-need { font-size: 11px; color: var(--muted); margin-top: auto; }
+  .tool-need code { color: var(--accent); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🛡️ Hunt Dashboard</h1>
+  <div class="badges">
+    <span class="badge confirmed" id="b-confirmed">0 confirmed</span>
+    <span class="badge likely" id="b-likely">0 likely</span>
+    <span class="badge dig" id="b-dig">0 DIG</span>
+    <span class="badge chain" id="b-chain">0 chains</span>
+    <span class="badge lead" id="b-lead">0 leads</span>
+  </div>
+  <div class="meta" id="updated">updated —</div>
+</header>
+
+<nav>
+  <button class="tab-btn active" data-tab="team">Team</button>
+  <button class="tab-btn" data-tab="findings">Findings</button>
+  <button class="tab-btn" data-tab="runs">Runs</button>
+  <button class="tab-btn" data-tab="activity">Activity</button>
+  <button class="tab-btn" data-tab="tools">Tools</button>
+  <button class="tab-btn" data-tab="setup-ai">Setup AI</button>
+</nav>
+
+<main>
+  <div class="tab active" id="tab-team">
+    <button class="scope-toggle" id="scope-toggle">⚙ Configure scope (in-scope / out-of-scope targets)</button>
+    <div class="scope-panel" id="scope-panel">
+      <div class="scope-cols">
+        <div>
+          <label>IN-SCOPE (one per line — subdomains of these are allowed too)</label>
+          <textarea id="in-scope" placeholder="example.com&#10;api.example.com"></textarea>
+        </div>
+        <div>
+          <label>OUT-OF-SCOPE (always blocked, even if also listed in-scope)</label>
+          <textarea id="out-scope" placeholder="staging-internal.example.com&#10;payments.example.com"></textarea>
+        </div>
+      </div>
+      <div class="hint">If IN-SCOPE is empty, scope is <b>not enforced</b> — any target can be hunted (not recommended). Add at least one in-scope entry to lock hunts down to it.</div>
+      <button class="scope-save" id="scope-save">Save Scope</button>
+      <span class="scope-saved-msg" id="scope-saved-msg" style="display:none;">saved ✓</span>
+    </div>
+
+    <form class="hunt-form" id="hunt-form">
+      <input type="text" name="target" placeholder="target, e.g. example.com (must be in your authorized scope)" required>
+      <input type="number" name="rounds" value="3" min="1" max="20" title="rounds">
+      <button type="submit" id="hunt-submit">Start Hunt</button>
+    </form>
+    <div class="categories" id="category-chips"></div>
+    <div class="profile-actions">
+      <button type="button" class="btn-secondary" id="profile-btn">Check target surface</button>
+      <span class="profile-note">ordinary GETs only · root, robots.txt, sitemap.xml, headers, a few known exposure paths</span>
+    </div>
+    <div class="profile-panel" id="profile-panel" style="display:none;"></div>
+    <div class="hunt-status" id="hunt-status"></div>
+
+    <div class="section-title">AI TEAM — LIVE</div>
+    <div class="legend">state is computed from heartbeat age · <span style="color:var(--green)">●</span> LIVE = pulse &lt;90s old · <span style="color:var(--yellow)">●</span> yellow = on task but silent · <span style="color:#555">●</span> grey = idle or unresponsive · <span style="color:var(--red)">●</span> red = blocked by scope</div>
+    <div class="grid" id="agent-grid"></div>
+  </div>
+
+  <div class="tab" id="tab-findings">
+    <div class="section-title">FINDINGS</div>
+    <div class="run-note" id="demo-banner" style="display:none; border-color:#4a3a1a; color:var(--yellow);">
+      Historical demo run: every finding below was simulated before real checks were
+      enabled. Start a new hunt to get evidence-backed results.
+    </div>
+    <table>
+      <thead><tr><th style="width:90px">Time</th><th style="width:130px">Agent</th><th style="width:90px">Severity</th><th>Finding</th><th style="width:32%">Target</th></tr></thead>
+      <tbody id="findings-body"></tbody>
+    </table>
+    <div class="empty" id="findings-empty" style="display:none;">No findings yet.</div>
+  </div>
+
+  <div class="tab" id="tab-runs">
+    <div class="section-title">RUNS &amp; DIFFS</div>
+    <div class="run-note">
+      Every hunt is stored under <code>state/runs/&lt;id&gt;/</code> and is never overwritten, so two runs can be
+      compared. A host or endpoint that appears here and did not exist last run has most likely never been
+      tested — that is where the next hour goes.
+    </div>
+    <div class="hunt-form" style="margin-bottom:6px;">
+      <select class="run-select" id="run-select"></select>
+      <button class="btn-secondary" id="run-refresh" type="button">Refresh diff</button>
+    </div>
+    <div class="run-note" id="run-summary" style="margin-bottom:0;"></div>
+    <div class="diff-cols">
+      <div class="diff-box">
+        <h3>NEW OR CHANGED SINCE PREVIOUS RUN</h3>
+        <div class="diff-list" id="diff-added"></div>
+      </div>
+      <div class="diff-box">
+        <h3>GONE SINCE PREVIOUS RUN</h3>
+        <div class="diff-list" id="diff-removed"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="tab" id="tab-activity">
+    <div class="section-title">ACTIVITY</div>
+    <div class="log" id="activity-log">waiting for agents…</div>
+  </div>
+
+  <div class="tab" id="tab-tools">
+    <div class="section-title">BUG-BOUNTY TOOLBOX</div>
+    <div class="run-note">
+      Every tool the agents can use, grouped by what it does. Pick one per stage — the choice is saved in
+      <code>tools.json</code> and handed to every worker on the next hunt. <b>installed</b> means the binary
+      was found on PATH inside this container; <b>need install</b> means it is catalogued only, and the
+      command shown is what would install it. Nothing is installed automatically.
+    </div>
+    <div class="hunt-form" style="margin-bottom:10px;">
+      <div class="tool-summary" id="tool-summary">loading the catalog…</div>
+      <button class="btn-secondary" id="tools-refresh" type="button">Re-detect tools</button>
+    </div>
+    <div class="tool-grid" id="tool-grid"></div>
+  </div>
+
+  <div class="tab" id="tab-setup-ai">
+    <div class="section-title">SETUP AI — agents & models</div>
+    <div class="ai-hint">
+      Each row is one agent. <b>model</b> is the model identifier your runtime expects
+      (an OpenCode model string, an OpenRouter slug, a local Ollama model name, etc).
+      <b>api key</b> is optional — only needed if that model isn't a free/local one.
+      Keys are stored in <code>agents.json</code> on this machine and are never shown
+      back in full once saved. Agents with role <b>lead</b> are the orchestrator's
+      identity: <code>dispatch.py</code> does the round planning and reports through
+      that card — leads are never handed a scanning task.
+    </div>
+    <table class="agents-table">
+      <thead>
+        <tr><th style="width:22%">name</th><th style="width:16%">role</th><th style="width:32%">model</th><th style="width:22%">api key</th><th style="width:8%"></th></tr>
+      </thead>
+      <tbody id="agents-body"></tbody>
+    </table>
+    <div class="ai-actions">
+      <button class="btn-secondary" id="add-agent-btn" type="button">+ Add agent</button>
+      <button class="btn-primary" id="save-agents-btn" type="button">Save</button>
+      <span class="ai-saved-msg" id="agents-saved-msg" style="display:none;">saved ✓</span>
+    </div>
+  </div>
+</main>
+
+<script>
+const sevColors = {
+  confirmed: "var(--red)", likely: "var(--yellow)", dig: "var(--green)",
+  chain: "var(--accent)", lead: "var(--purple)"
+};
+
+// Everything rendered below comes from state that a *target* or a model can
+// influence (page titles, JS comments, error strings). Interpolating that into
+// innerHTML unescaped would let a hostile target XSS the hunter's dashboard,
+// so every value goes through here first.
+function esc(value) {
+  return String(value === null || value === undefined ? "" : value).replace(/[&<>"']/g, c => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+  }[c]));
+}
+
+document.querySelectorAll(".tab-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+    document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+    btn.classList.add("active");
+    document.getElementById("tab-" + btn.dataset.tab).classList.add("active");
+    if (btn.dataset.tab === "runs") loadRuns();
+    if (btn.dataset.tab === "tools") loadTools();
+  });
+});
+
+function fmtAge(sec) {
+  if (sec === null || sec === undefined) return "—";
+  if (sec < 60) return Math.round(sec) + "s ago";
+  return Math.round(sec / 60) + "m ago";
+}
+
+function statusLabel(a) {
+  if (a.live_status === "blocked") return "BLOCKED · " + (a.note || "outside scope");
+  if (a.live_status === "live") return "LIVE · working right now";
+  if (a.live_status === "ontask") return "ON TASK · silent " + Math.round(a.age_seconds) + "s";
+  if (a.live_status === "yellow") return "ON TASK · silent " + Math.round(a.age_seconds) + "s — heartbeat pending";
+  return "GREY · idle or unresponsive";
+}
+
+async function refresh() {
+  try {
+    const res = await fetch("/api/state");
+    const data = await res.json();
+
+    // Restore the last target check after a page reload.
+    if (data.run && data.run.profile &&
+        document.getElementById("profile-panel").style.display === "none") {
+      renderProfile(data.run.profile);
+    }
+
+    document.getElementById("updated").textContent =
+      "updated " + new Date(data.updated).toLocaleString() +
+      (data.run ? " · run " + data.run.run_id : " · no run yet") +
+      (data.run && data.run.demo ? " · DEMO RUN" : "");
+
+    const demoBanner = document.getElementById("demo-banner");
+    if (demoBanner) {
+      demoBanner.style.display = (data.run && data.run.demo) ? "block" : "none";
+    }
+
+    document.getElementById("b-confirmed").textContent = data.counts.confirmed + " confirmed";
+    document.getElementById("b-likely").textContent = data.counts.likely + " likely";
+    document.getElementById("b-dig").textContent = data.counts.dig + " DIG";
+    document.getElementById("b-chain").textContent = data.counts.chain + " chains";
+    document.getElementById("b-lead").textContent = data.counts.lead + " leads";
+
+    const grid = document.getElementById("agent-grid");
+    if (data.agents.length === 0) {
+      grid.innerHTML = '<div class="empty">No agents reporting yet. Run <code>python dispatch.py</code> in another terminal.</div>';
+    } else {
+      grid.innerHTML = data.agents.map(a => `
+        <div class="card">
+          <div class="card-top">
+            <span class="dot ${esc(a.live_status)}"></span>
+            <span class="name">${esc(a.name)}</span>
+            ${a.role === "lead" ? '<span class="role-tag">LEAD</span>' : ""}
+            <span class="model">— ${esc(a.model)}</span>
+          </div>
+          <div class="status-line ${esc(a.live_status)}">${esc(statusLabel(a))}</div>
+          <div class="task-desc">${esc(a.task_desc)}</div>
+          <div class="card-foot">last report: ${fmtAge(a.age_seconds)} · findings: ${esc(a.findings_count)} · task: ${esc(a.task_id || "—")}</div>
+          ${(a.tools && a.tools.length) ? `<div class="card-foot">tools: ${a.tools.map(t => esc((t.bin || t.id) + (t.known === false ? " (unknown)" : t.installed ? "" : " (missing)"))).join(", ")}</div>` : ""}
+          ${a.note ? `<div class="card-foot">${esc(a.note)}</div>` : ""}
+        </div>
+      `).join("");
+    }
+
+    const fbody = document.getElementById("findings-body");
+    const fempty = document.getElementById("findings-empty");
+    if (data.findings.length === 0) {
+      fbody.innerHTML = "";
+      fempty.style.display = "block";
+    } else {
+      fempty.style.display = "none";
+      fbody.innerHTML = data.findings.map(f => `
+        <tr>
+          <td class="mono">${esc(new Date(f.ts).toLocaleTimeString())}</td>
+          <td>${esc(f.agent)}</td>
+          <td><span class="sev" style="color:${sevColors[f.severity] || '#ccc'}">${esc(f.severity)}</span></td>
+          <td>
+            ${esc(f.title)}${f.demo ? '<span class="demo-tag">DEMO</span>' : ""}
+            ${f.dup_count > 1 ? `<span class="dupe">seen ${esc(f.dup_count)}×</span>` : ""}
+            ${f.evidence ? `<div class="f-evidence">${esc(f.evidence)}</div>` : ""}
+            ${f.command ? `<div class="f-url">${esc(f.command)}</div>` : ""}
+          </td>
+          <td>
+            <div>${esc(f.host || "—")}</div>
+            ${f.url ? `<div class="f-url">${esc(f.url)}</div>` : ""}
+            ${f.param ? `<div class="f-url">param: ${esc(f.param)}</div>` : ""}
+          </td>
+        </tr>
+      `).join("");
+    }
+  } catch (e) {
+    console.error("refresh failed", e);
+  }
+}
+
+async function refreshActivity() {
+  try {
+    const res = await fetch("/api/activity");
+    const data = await res.json();
+    const el = document.getElementById("activity-log");
+    el.textContent = data.lines.length ? data.lines.join("\n") : "waiting for agents…";
+    el.scrollTop = el.scrollHeight;
+  } catch (e) {}
+}
+
+// --- Runs & diffs ---------------------------------------------------------
+async function loadRuns() {
+  const sel = document.getElementById("run-select");
+  try {
+    const res = await fetch("/api/runs");
+    const data = await res.json();
+    const runs = data.runs || [];
+    const keep = sel.value;
+    sel.innerHTML = runs.map(r => `
+      <option value="${esc(r.run_id)}">${esc(r.run_id)} — ${esc(r.target || "?")} · ${esc(r.findings)} findings · ${esc(r.assets)} assets${r.running ? " · RUNNING" : ""}</option>
+    `).join("");
+
+    if (keep && runs.some(r => r.run_id === keep)) sel.value = keep;
+    else if (data.current && runs.some(r => r.run_id === data.current)) sel.value = data.current;
+
+    if (!runs.length) {
+      document.getElementById("diff-added").innerHTML = '<div class="empty">No runs yet — start a hunt on the Team tab.</div>';
+      document.getElementById("diff-removed").innerHTML = "";
+      document.getElementById("run-summary").textContent = "";
+      return;
+    }
+    await loadDiff();
+  } catch (e) {
+    console.error("loadRuns failed", e);
+  }
+}
+
+async function loadDiff() {
+  const runId = document.getElementById("run-select").value;
+  const addedEl = document.getElementById("diff-added");
+  const removedEl = document.getElementById("diff-removed");
+  if (!runId) return;
+  try {
+    const res = await fetch("/api/diff?run=" + encodeURIComponent(runId));
+    const data = await res.json();
+    if (!data.ok) {
+      addedEl.innerHTML = `<div class="empty">${esc(data.error || "diff unavailable")}</div>`;
+      removedEl.innerHTML = "";
+      return;
+    }
+
+    const added = (data.assets.added || []).map(a =>
+      `<div class="added">+ ${esc(a.value)} <span class="dim">${esc(a.kind || "")}</span></div>`);
+    (data.findings.added || []).forEach(f => added.push(
+      `<div class="added">+ [${esc(f.severity)}] ${esc(f.title)}</div>`));
+
+    const removed = (data.assets.removed || []).map(a =>
+      `<div class="removed">− ${esc(a.value)}</div>`);
+    (data.findings.removed || []).forEach(f => removed.push(
+      `<div class="removed">− ${esc(f.title)}</div>`));
+
+    addedEl.innerHTML = added.length ? added.join("") : '<div class="empty">Nothing new since the previous run.</div>';
+    removedEl.innerHTML = removed.length ? removed.join("") : '<div class="empty">Nothing vanished.</div>';
+    document.getElementById("run-summary").textContent =
+      (data.is_first_run ? "first run — no previous run to diff against yet" : "compared with " + data.base_run) +
+      " · " + (data.assets.total || 0) + " assets · " + (data.findings.total || 0) + " unique findings";
+  } catch (e) {
+    console.error("loadDiff failed", e);
+  }
+}
+
+document.getElementById("run-select").addEventListener("change", loadDiff);
+document.getElementById("run-refresh").addEventListener("click", loadRuns);
+
+// --- Category chips -----------------------------------------------------
+let selectedCategories = new Set();
+// Auto mode: send no category list, so the server picks what the surface
+// check found. Any manual chip click switches to the checked set.
+let autoMode = true;
+
+function updateAutoChip() {
+  const chip = document.getElementById("auto-chip");
+  if (!chip) return;
+  chip.classList.toggle("checked", autoMode);
+  chip.querySelector("input").checked = autoMode;
+}
+
+function setCategoryChips(cats) {
+  selectedCategories = new Set(cats);
+  document.querySelectorAll(".cat-chip[data-cat]").forEach(chip => {
+    const on = selectedCategories.has(chip.dataset.cat);
+    chip.classList.toggle("checked", on);
+    chip.querySelector("input").checked = on;
+  });
+}
+
+async function loadCategories() {
+  try {
+    const res = await fetch("/api/categories");
+    const data = await res.json();
+    selectedCategories = new Set(data.categories); // all selected by default
+    const wrap = document.getElementById("category-chips");
+    wrap.innerHTML = `
+      <label class="cat-chip auto-chip checked" id="auto-chip" title="Run the target check first and test the bug classes it finds">
+        <input type="checkbox" checked> auto: let the target check decide
+      </label>` + data.categories.map(c => `
+      <label class="cat-chip checked" data-cat="${c}">
+        <input type="checkbox" checked> ${c.replace(/_/g, " ")}
+      </label>
+    `).join("");
+
+    document.getElementById("auto-chip").addEventListener("click", (e) => {
+      e.preventDefault();
+      autoMode = true;
+      updateAutoChip();
+    });
+    wrap.querySelectorAll(".cat-chip[data-cat]").forEach(chip => {
+      chip.addEventListener("click", (e) => {
+        e.preventDefault();
+        autoMode = false;
+        updateAutoChip();
+        const cat = chip.dataset.cat;
+        const cb = chip.querySelector("input");
+        if (selectedCategories.has(cat)) {
+          selectedCategories.delete(cat);
+          cb.checked = false;
+          chip.classList.remove("checked");
+        } else {
+          selectedCategories.add(cat);
+          cb.checked = true;
+          chip.classList.add("checked");
+        }
+      });
+    });
+  } catch (e) {}
+}
+
+// --- Scope panel ----------------------------------------------------------
+document.getElementById("scope-toggle").addEventListener("click", () => {
+  document.getElementById("scope-panel").classList.toggle("open");
+});
+
+async function loadScope() {
+  try {
+    const res = await fetch("/api/scope");
+    const data = await res.json();
+    document.getElementById("in-scope").value = (data.in_scope || []).join("\n");
+    document.getElementById("out-scope").value = (data.out_scope || []).join("\n");
+  } catch (e) {}
+}
+
+document.getElementById("scope-save").addEventListener("click", async () => {
+  const in_scope = document.getElementById("in-scope").value.split("\n").map(s => s.trim()).filter(Boolean);
+  const out_scope = document.getElementById("out-scope").value.split("\n").map(s => s.trim()).filter(Boolean);
+  try {
+    await fetch("/api/scope", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ in_scope, out_scope }),
+    });
+    const msg = document.getElementById("scope-saved-msg");
+    msg.style.display = "inline";
+    setTimeout(() => msg.style.display = "none", 2000);
+  } catch (e) {}
+});
+
+// --- Target surface check --------------------------------------------
+let lastProfile = null;
+
+function renderProfile(data) {
+  const el = document.getElementById("profile-panel");
+  el.style.display = "block";
+  lastProfile = data;
+  if (!data || !data.ok) {
+    el.className = "profile-panel error";
+    el.innerHTML = `<div class="profile-head"><b>target check failed</b>
+      <span class="profile-reason">${esc((data && data.error) || "no response")}</span></div>`;
+    return;
+  }
+  el.className = "profile-panel";
+
+  const techs = (data.technologies || []).map(t =>
+    `<span class="tech-chip">${esc(t.name)}${t.version ? ` <span class="ver">${esc(t.version)}</span>` : ""}</span>`
+  ).join("") || `<span class="profile-reason">no clear framework fingerprint</span>`;
+
+  const cats = (data.categories || []).map(c => `
+    <div class="profile-cat">
+      <span class="conf ${esc(c.confidence)}">${esc(c.confidence)}</span>
+      <div><b>${esc(c.category.replace(/_/g, " "))}</b>
+        <div class="profile-reason">${esc(c.reason)}</div></div>
+    </div>`).join("") || `<div class="profile-reason">Nothing stood out — recon first, then check again.</div>`;
+
+  const sec = data.security || {};
+  const gaps = [];
+  if (sec.csp === false) gaps.push("no CSP");
+  if (sec.x_frame_options === false) gaps.push("no frame protection");
+  if (sec.hsts === false) gaps.push("no HSTS");
+  if (sec.x_content_type_options === false) gaps.push("no nosniff");
+  if (sec.cors && sec.cors !== "none") gaps.push("CORS " + sec.cors);
+  const cookieGaps = (sec.cookies_missing_httponly || []).length
+    ? "without HttpOnly: " + sec.cookies_missing_httponly.join(", ") : "";
+  const exps = (data.exposures || []).map(e =>
+    `<div class="profile-exposure sev-${esc(e.severity)}">${esc(e.path)} → ${esc(e.status)} · ${esc(e.note)}</div>`
+  ).join("");
+  const robots = data.robots && data.robots.found
+    ? `<div class="profile-exposure sev-info">robots.txt: ${esc((data.robots.entries || []).slice(0, 12).join(", ") || "no rules")}</div>`
+    : "";
+  const params = data.params || {};
+  const paramBits = [];
+  ["redirect", "ssrf", "object", "search"].forEach(k => {
+    if ((params[k] || []).length) paramBits.push(`${k}: ${params[k].join(", ")}`);
+  });
+
+  el.innerHTML = `
+    <div class="profile-head">
+      <span class="url">${esc(data.final_url || data.base_url)}</span>
+      <span>HTTP ${esc(data.status)}</span>
+      ${data.server ? `<span>server: ${esc(data.server)}</span>` : ""}
+      ${data.title ? `<span>title: ${esc(data.title)}</span>` : ""}
+    </div>
+    <div>${techs}</div>
+    <div class="profile-grid">
+      <div>
+        <h4>LIKELY BUG CLASSES</h4>
+        ${cats}
+      </div>
+      <div>
+        <h4>SURFACE NOTES</h4>
+        <div class="profile-kv">
+          <div><b>header gaps:</b> ${gaps.length
+            ? `<span class="gap">${esc(gaps.join(", "))}</span>`
+            : `<span class="ok">none obvious</span>`}</div>
+          ${cookieGaps ? `<div><b>cookies:</b> ${esc(cookieGaps)}</div>` : ""}
+          <div><b>parameters seen:</b> ${paramBits.length
+            ? esc(paramBits.join(" · "))
+            : "none on the landing page"}</div>
+          ${exps ? `<div><b>exposure probes:</b>${exps}</div>` : ""}
+          ${robots}
+          ${(data.notes || []).length
+            ? `<div class="profile-reason">${esc((data.notes || []).join(" · "))}</div>` : ""}
+        </div>
+      </div>
+    </div>
+    <button type="button" class="profile-apply" id="profile-apply">Use these categories</button>
+    <span class="profile-note">checked ${esc((data.requests || []).length)} URL(s) · nothing was brute-forced</span>`;
+
+  document.getElementById("profile-apply").addEventListener("click", () => {
+    const chosen = data.suggested_categories || [];
+    if (!chosen.length) return;
+    autoMode = false;
+    updateAutoChip();
+    setCategoryChips(chosen);
+    const statusEl = document.getElementById("hunt-status");
+    statusEl.className = "hunt-status";
+    statusEl.textContent = "categories set from the target check: " + chosen.join(", ");
+  });
+}
+
+function profileFor(target) {
+  const statusEl = document.getElementById("hunt-status");
+  const btn = document.getElementById("profile-btn");
+  statusEl.className = "hunt-status";
+  statusEl.textContent = "checking " + target + " …";
+  btn.disabled = true;
+  return fetch("/api/profile?target=" + encodeURIComponent(target))
+    .then(res => res.json())
+    .then(data => {
+      renderProfile(data);
+      statusEl.textContent = data.ok
+        ? "target check done — " + (data.suggested_categories || []).length + " likely bug class(es)"
+        : "target check failed: " + (data.error || "no response");
+    })
+    .catch(err => {
+      statusEl.className = "hunt-status error";
+      statusEl.textContent = "target check request failed: " + err;
+    })
+    .finally(() => { btn.disabled = false; });
+}
+
+document.getElementById("profile-btn").addEventListener("click", () => {
+  const target = document.getElementById("hunt-form").target.value.trim();
+  if (!target) {
+    document.getElementById("hunt-status").className = "hunt-status error";
+    document.getElementById("hunt-status").textContent = "enter a target first";
+    return;
+  }
+  profileFor(target);
+});
+
+// --- Hunt form --------------------------------------------------------
+function toolsNote(data) {
+  const missing = data.tools_missing || [];
+  if (!missing.length) return "";
+  return " · " + missing.length + " needed tool(s) not installed: " +
+    missing.map(t => t.name).join(", ") + " (Tools tab)";
+}
+
+document.getElementById("hunt-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const form = e.target;
+  const target = form.target.value.trim();
+  const rounds = parseInt(form.rounds.value, 10) || 3;
+  const categories = Array.from(selectedCategories);
+  const statusEl = document.getElementById("hunt-status");
+  const btn = document.getElementById("hunt-submit");
+
+  btn.disabled = true;
+  statusEl.className = "hunt-status";
+  statusEl.textContent = autoMode
+    ? "checking the target surface, then starting the hunt on " + target + " …"
+    : "starting hunt on " + target + " …";
+
+  try {
+    const res = await fetch("/api/start", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        target, rounds,
+        categories: autoMode ? null : categories,
+      }),
+    });
+    const data = await res.json();
+    if (data.profile) renderProfile(data.profile);
+    if (!data.ok) {
+      statusEl.className = "hunt-status error";
+      const missing = (data.tools_missing || []).map(t => t.name).join(", ");
+      statusEl.textContent = (data.error || "failed to start") +
+        (missing ? " — missing: " + missing + " (see the Tools tab)" : "");
+      btn.disabled = false;
+    } else {
+      const how = data.categories_source === "profile"
+        ? "chosen from the target check"
+        : data.categories_source === "user" ? "your selection" : "all categories";
+      const line = "hunt running on " + target + " (" + rounds + " rounds, " +
+        data.categories.length + " categories — " + how + ")" + toolsNote(data);
+      statusEl.className = data.warning ? "hunt-status warning" : "hunt-status";
+      statusEl.textContent = (data.warning ? data.warning + " — " : "") + line;
+      pollHuntStatus();
+    }
+  } catch (err) {
+    statusEl.className = "hunt-status error";
+    statusEl.textContent = "request failed: " + err;
+    btn.disabled = false;
+  }
+});
+
+loadCategories();
+loadScope();
+
+// --- Tool registry -------------------------------------------------------
+let toolsDemoMode = false;
+
+async function loadTools(force) {
+  try {
+    const res = await fetch("/api/tools" + (force ? "?refresh=1" : ""));
+    const data = await res.json();
+    if (data.ok) renderTools(data);
+  } catch (e) {
+    console.error("loadTools failed", e);
+  }
+}
+
+function renderTools(data) {
+  toolsDemoMode = !!data.demo_mode;
+  const s = data.summary;
+  document.getElementById("tool-summary").innerHTML =
+    `<b>${esc(s.catalogued)}</b> tools catalogued in <b>${esc(s.stages)}</b> stages · ` +
+    `<span style="color:var(--green)">${esc(s.installed)}</span> of ${esc(s.selected_total)} selected tools installed · ` +
+    `<span style="color:var(--yellow)">${esc(s.missing.length)}</span> need install` +
+    (toolsDemoMode ? ' · <span style="color:var(--purple)">demo mode: missing tools are reported, not blocked</span>' : "");
+
+  const grid = document.getElementById("tool-grid");
+  if (!data.stages.length) {
+    grid.innerHTML = '<div class="empty">tool catalog unavailable</div>';
+    return;
+  }
+
+  grid.innerHTML = data.stages.map(stage => {
+    const sel = stage.tools.find(t => t.id === stage.selected) || stage.tools[0];
+    const opts = stage.tools.map(t =>
+      `<option value="${esc(t.id)}" ${t.id === stage.selected ? "selected" : ""}>` +
+      `${esc(t.id)} — ${t.installed ? "installed" : "need install"}${t.default ? " (default)" : ""}</option>`
+    ).join("");
+    const alts = stage.tools.filter(t => t.id !== stage.selected).map(t =>
+      `<button class="alt-chip" type="button" data-stage="${esc(stage.id)}" data-tool="${esc(t.id)}" ` +
+      `title="${esc(t.what)}">${esc(t.id)}${t.installed ? " ✓" : ""}</button>`
+    ).join("");
+    const ready = !!(sel && sel.installed);
+    return `
+      <div class="tool-stage">
+        <div class="tool-stage-head">
+          <h3>${esc(stage.label)}</h3>
+          <span class="pill ${ready ? "ok" : "need"}">${ready ? "READY" : "NEED INSTALL"}</span>
+        </div>
+        <div class="blurb">${esc(stage.blurb)}</div>
+        <select data-stage="${esc(stage.id)}">${opts}</select>
+        ${alts ? `<div class="tool-alt">${alts}</div>` : ""}
+        <div class="tool-detail">
+          <div class="what">${esc(sel ? sel.what : "")}</div>
+          ${sel ? `<div style="margin-top:4px;"><a href="${esc(sel.repo)}" target="_blank" rel="noopener noreferrer">${esc(sel.repo.replace("https://github.com/", "github.com/"))}</a>` +
+                  `${sel.version ? ` · <span class="mono">${esc(sel.version)}</span>` : ""}</div>` : ""}
+          ${sel && !sel.installed ? `<div class="cmd">${esc(sel.install)}</div>` : ""}
+        </div>
+        <div class="tool-need">needed by: ${stage.needed_by.length
+          ? stage.needed_by.map(c => `<code>${esc(c)}</code>`).join(", ")
+          : "manual testing only — no CLI tool for this category"}</div>
+      </div>
+    `;
+  }).join("");
+}
+
+async function chooseTool(stage, toolId) {
+  if (!stage || !toolId) return;
+  try {
+    const res = await fetch("/api/tools", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ selected: { [stage]: toolId } }),
+    });
+    const data = await res.json();
+    if (data.ok) renderTools(data);
+  } catch (e) {
+    console.error("chooseTool failed", e);
+  }
+}
+
+document.getElementById("tool-grid").addEventListener("change", (e) => {
+  if (e.target.tagName === "SELECT") chooseTool(e.target.dataset.stage, e.target.value);
+});
+document.getElementById("tool-grid").addEventListener("click", (e) => {
+  const chip = e.target.closest(".alt-chip");
+  if (chip) chooseTool(chip.dataset.stage, chip.dataset.tool);
+});
+document.getElementById("tools-refresh").addEventListener("click", () => loadTools(true));
+
+// --- Setup AI panel -----------------------------------------------------
+function agentRowHtml(a) {
+  a = a || { name: "", role: "worker", model: "", api_key_set: false };
+  const keyPlaceholder = a.api_key_set ? "•••••••• (set — leave blank to keep)" : "optional";
+  return `
+    <tr>
+      <td><input type="text" name="name" value="${esc(a.name)}" placeholder="worker-x"></td>
+      <td>
+        <select name="role">
+          <option value="lead" ${a.role === 'lead' ? 'selected' : ''}>lead</option>
+          <option value="worker" ${a.role !== 'lead' ? 'selected' : ''}>worker</option>
+        </select>
+      </td>
+      <td><input type="text" name="model" value="${esc(a.model)}" placeholder="opencode/glm-5.3-flash-free"></td>
+      <td><input type="password" name="api_key" value="" placeholder="${keyPlaceholder}"></td>
+      <td><button class="rm-btn" type="button" onclick="this.closest('tr').remove()">✕</button></td>
+    </tr>
+  `;
+}
+
+async function loadAgents() {
+  try {
+    const res = await fetch("/api/agents");
+    const data = await res.json();
+    const body = document.getElementById("agents-body");
+    body.innerHTML = (data.agents || []).map(agentRowHtml).join("");
+  } catch (e) {}
+}
+
+document.getElementById("add-agent-btn").addEventListener("click", () => {
+  document.getElementById("agents-body").insertAdjacentHTML("beforeend", agentRowHtml());
+});
+
+document.getElementById("save-agents-btn").addEventListener("click", async () => {
+  const rows = document.querySelectorAll("#agents-body tr");
+  const agents = Array.from(rows).map(tr => ({
+    name: tr.querySelector('[name="name"]').value.trim(),
+    role: tr.querySelector('[name="role"]').value,
+    model: tr.querySelector('[name="model"]').value.trim(),
+    api_key: tr.querySelector('[name="api_key"]').value.trim(),
+  })).filter(a => a.name && a.model);
+
+  try {
+    const res = await fetch("/api/agents", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ agents }),
+    });
+    const data = await res.json();
+    const msg = document.getElementById("agents-saved-msg");
+    if (data.ok) {
+      msg.textContent = "saved ✓ (" + data.count + " agents)";
+      msg.style.display = "inline";
+      setTimeout(() => msg.style.display = "none", 2500);
+      loadAgents(); // reload so key fields show the masked "set" state
+    } else {
+      msg.textContent = data.error || "save failed";
+      msg.style.color = "var(--red)";
+      msg.style.display = "inline";
+    }
+  } catch (e) {}
+});
+
+loadAgents();
+
+async function pollHuntStatus() {
+  const btn = document.getElementById("hunt-submit");
+  const statusEl = document.getElementById("hunt-status");
+  try {
+    const res = await fetch("/api/status");
+    const data = await res.json();
+    if (data.value) {
+      btn.disabled = true;
+      setTimeout(pollHuntStatus, 3000);
+    } else {
+      btn.disabled = false;
+      if (data.error) {
+        statusEl.className = "hunt-status error";
+        statusEl.textContent = "hunt failed: " + data.error;
+      } else if (statusEl.textContent.indexOf("hunt running") === 0) {
+        statusEl.className = "hunt-status";
+        statusEl.textContent = "hunt complete.";
+      }
+      loadRuns();
+    }
+  } catch (e) {
+    btn.disabled = false;
+  }
+}
+
+refresh();
+refreshActivity();
+pollHuntStatus();
+setInterval(refresh, 3000);
+setInterval(refreshActivity, 4000);
+setInterval(() => {
+  if (document.getElementById("tab-runs").classList.contains("active")) loadRuns();
+}, 10000);
+</script>
+
+</body>
+</html>
